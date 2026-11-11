@@ -52,31 +52,23 @@ int ObExprAIPrompt::calc_result_typeN(ObExprResType &type,
   int ret = OB_SUCCESS;
   bool is_null_res = false;
   ObExprResType template_type = types_stack[0];
-    // 1. 严格校验模板参数（第0个参数）：拦截非字符串、TEXT/BLOB
-  if (!ob_is_string_tc(template_type.get_type()) || 
-      ob_is_text_tc(template_type.get_type()) || 
-      ob_is_blob_tc(template_type.get_type())) {
-    ret = OB_ERR_INVALID_TYPE_FOR_OP;
-  } else {
+    // 1. 模板参数（第 0 个）：支持字符串、TEXT/LONGTEXT，拒绝非法类型
+  if (ob_is_text_tc(template_type.get_type()) || ob_is_string_tc(template_type.get_type())) {
     types_stack[0].set_calc_type(ObVarcharType);
     types_stack[0].set_calc_collation_type(CS_TYPE_UTF8MB4_BIN);
+  } else {
+    ret = OB_ERR_INVALID_TYPE_FOR_OP;
   }
 
-  // 2. 严格校验后续参数
+  // 2. 后续参数：支持字符串、TEXT、JSON Array/Object
   for (int64_t i = 1; i < param_num && OB_SUCC(ret); i++) {
-    // 拦截 TEXT 和 BLOB 类型（符合测试用例预期的报错）
-    if (ob_is_text_tc(types_stack[i].get_type()) || ob_is_blob_tc(types_stack[i].get_type())) {
-      ret = OB_ERR_INVALID_TYPE_FOR_OP;
-    } else if (ob_is_string_tc(types_stack[i].get_type())) {
-      // 允许正常字符串
+    if (ob_is_text_tc(types_stack[i].get_type()) || ob_is_string_tc(types_stack[i].get_type())) {
       types_stack[i].set_calc_type(ObVarcharType);
       types_stack[i].set_calc_collation_type(CS_TYPE_UTF8MB4_BIN);
     } else if (ob_is_json(types_stack[i].get_type())) {
-      // 明确拒绝 JSON
-      ret = OB_NOT_SUPPORTED;
-      LOG_USER_ERROR(OB_NOT_SUPPORTED, "json type is not supported");
+      // 赛题要求：支持 JSON Array/Object 参数，放行！
+      types_stack[i].set_calc_type(ObJsonType);
     } else {
-      // 其他所有类型（如 int, float, datetime）全拒绝
       ret = OB_ERR_INVALID_TYPE_FOR_OP;
     }
   }

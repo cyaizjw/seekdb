@@ -115,8 +115,11 @@ int ObExprAIPrompt::eval_ai_prompt(const ObExpr &expr, ObEvalCtx &ctx, ObDatum &
         } else if (OB_FAIL(args_array->append(arg_json_str))) {
         }
       } else if (ob_is_json(arg->datum_meta_.type_)) {
-        ret = OB_NOT_SUPPORTED;
-        LOG_USER_ERROR(OB_NOT_SUPPORTED, "json type is not supported");
+        // 支持 JSON 参数，直接转换成 JSON 塞进数组里
+        ObJsonNode *json_node = datum->get_json_tree();
+        if (OB_ISNULL(json_node) || OB_FAIL(args_array->append(json_node))) {
+          ret = OB_ERR_UNEXPECTED;
+        }
       } else if (datum->is_null()) {
         ret = OB_ERR_INVALID_TYPE_FOR_OP;
       }
